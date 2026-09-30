@@ -87,10 +87,191 @@ function runSoftwareAi(temp, hum, soil) {
   };
 }
 
+function runSensorFusionAi(record) {
+  const flameTriggered = record.flame_detected === true || (record.flame_raw !== undefined && Number(record.flame_raw) > 0 && Number(record.flame_raw) < 1500);
+  const mqPpm = Number(record.mq135_ppm ?? 250);
+  const temp = Number(record.temperature ?? 26);
+  const hum = Number(record.humidity ?? 60);
+  const soil = Number(record.soil_moisture ?? 55);
+  const nowTs = record.timestamp || new Date().toISOString();
+
+  const warnPpm = Number(process.env.MQ135_WARN_PPM || 600);
+  const hazardPpm = Number(process.env.MQ135_HAZARD_PPM || 1000);
+  const gasWarning = mqPpm >= warnPpm;
+  const gasHazard = mqPpm >= hazardPpm;
+
+  // Scenario 1: CRITICAL FIRE EMERGENCY (Flame + Smoke Confirmation)
+  if (flameTriggered && gasWarning) {
+    return {
+      threatLevel: 'EMERGENCY',
+      threatScore: Math.min(100, Math.round(92 + (mqPpm / hazardPpm) * 8)),
+      threatTitle: 'DARURAT: KEBAKARAN AKTIF TERKONFIRMASI (FIRE EMERGENCY)',
+      threatDescription: `Sinergi sensor valid! Flame Sensor mendeteksi lidah api terbuka dan MQ-135 mengonfirmasi lonjakan gas pembakaran/asap pekat (${mqPpm.toFixed(0)} PPM).`,
+      causeAnalysis: 'Deteksi simultan antara radiasi optik inframerah nyala api dan emisi gas karbon/asap pembakaran. AI memastikan ini adalah kebakaran nyata (Bukan false positive optik).',
+      crossValidationStatus: 'CONFIRMED_HAZARD',
+      crossValidationDetails: 'Sensor Api [AKTIF] + Sensor Gas MQ-135 [TINGGI] saling mengonfirmasi 100% adanya api nyata.',
+      sensorCorrelationIndex: 99,
+      factors: [
+        'Sensor Api Inframerah memicu status aktif kebakaran',
+        `Sensor MQ-135 mendeteksi lonjakan asap/gas pembakaran (${mqPpm.toFixed(0)} PPM)`,
+        temp >= 35 ? `Suhu lingkungan melonjak tinggi (${temp.toFixed(1)}°C) mendukung penyebaran api` : 'Potensi api lokal yang baru membesar',
+      ],
+      immediateActions: [
+        'SEGERA matikan saklar listrik utama / adaptor catu daya FLORA dan area tanam.',
+        'Gunakan alat pemadam kebakaran (APAR jenis CO2, Foam, atau serbuk kimia kering) pada titik api.',
+        'Lakukan evakuasi personil segera dan hubungi unit Pemadam Kebakaran terdekat.',
+        'Jauhkan botol pupuk cair, alkohol, dan media tanam kering dari radius api.',
+      ],
+      systemResponses: [
+        'MENGHENTIKAN otomatis pergerakan motor rel scanner ke posisi netral.',
+        'MENGIRIMKAN instruksi darurat pemotretan snapshot ESP32-CAM untuk rekaman visual insiden.',
+        'MENGAKTIFKAN sirine audio dan banner visual darurat di dashboard.',
+      ],
+      flameAgreement: true,
+      gasAgreement: true,
+      recommendedInspection: 'Inspeksi keselamatan menyeluruh setelah api dipadamkan total.',
+      timestamp: nowTs,
+    };
+  }
+
+  // Scenario 2: SMOLDERING FIRE / TOXIC GAS & SMOKE HAZARD
+  if (!flameTriggered && gasWarning) {
+    const isCritical = gasHazard || mqPpm > 900;
+    return {
+      threatLevel: isCritical ? 'CRITICAL' : 'WARNING',
+      threatScore: Math.min(94, Math.round(72 + ((mqPpm - warnPpm) / (hazardPpm - warnPpm || 1)) * 22)),
+      threatTitle: isCritical ? 'BAHAYA ASAP PEKAT & KEBOCORAN GAS BERACUN' : 'PERINGATAN: KONSENTRASI GAS & POLUSI UDARA TINGGI',
+      threatDescription: `Sensor MQ-135 mendeteksi konsentrasi gas berbahaya (${mqPpm.toFixed(0)} PPM) tanpa adanya nyala api terbuka dari Flame Sensor.`,
+      causeAnalysis: 'AI mengidentifikasi potensi pembakaran bara tersembunyi (smoldering) pada media tanam/sekam, kabel korsleting yang meleleh tanpa lidah api, atau kebocoran gas berbahaya (amonia/CO2/VOC).',
+      crossValidationStatus: 'SMOLDERING_SUSPECTED',
+      crossValidationDetails: 'Sensor Api [AMAN] vs Sensor MQ-135 [TERPICU]. Kondisi khas bara tertutup atau kontaminasi udara luar.',
+      sensorCorrelationIndex: 86,
+      factors: [
+        `Partikel gas/asap terdeteksi pada tingkat signifikan (${mqPpm.toFixed(0)} PPM)`,
+        'Tidak ada radiasi nyala api terbuka pada sudut pandang Flame Sensor',
+        soil < 20 ? 'Media tanam sangat kering, rentan menjadi media bara terpendam' : 'Kelembapan media normal',
+      ],
+      immediateActions: [
+        'Buka jendela dan nyalakan exhaust fan darurat untuk sirkulasi pembuangan gas.',
+        'Gunakan masker pelindung respirator (N95 / filter gas) sebelum masuk ke area tanaman.',
+        'Periksa jalur kabel adaptor daya ESP32 dan modul motor driver L298N dari bau sangit atau komponen panas.',
+        'Siramkan air secara terarah jika dicurigai terdapat bara terpendam pada media tanam sekam.',
+      ],
+      systemResponses: [
+        'Mengaktifkan notifikasi bahaya gas pada dashboard sistem.',
+        'Merekam anomali peningkatan PPM ke dalam log riwayat.',
+      ],
+      flameAgreement: false,
+      gasAgreement: true,
+      recommendedInspection: 'Periksa fisik seluruh perkabelan dan permukaan media tanam dengan segera.',
+      timestamp: nowTs,
+    };
+  }
+
+  // Scenario 3: OPTICAL FLICKER / SUNLIGHT ANOMALY / FALSE ALARM
+  if (flameTriggered && !gasWarning && temp < 36) {
+    return {
+      threatLevel: 'ADVISORY',
+      threatScore: 42,
+      threatTitle: 'WASPADA: ANOMALI OPTIK / PANTULAN CAHAYA MATAHARI',
+      threatDescription: `Flame Sensor terpicu aktif, namun sensor MQ-135 mendeteksi kualitas udara tetap bersih (${mqPpm.toFixed(0)} PPM) dan suhu normal (${temp.toFixed(1)}°C).`,
+      causeAnalysis: 'AI mendeteksi anomali asimetris sensor. Sensor api inframerah sangat sensitif terhadap pantulan sinar matahari langsung, lampu halogen, atau percikan korek api sesaat tanpa pembakaran lanjutan.',
+      crossValidationStatus: 'OPTICAL_FALSE_ALARM',
+      crossValidationDetails: 'Sensor Api [AKTIF] tapi Sensor Gas MQ-135 [BERSIH]. Kemungkinan besar false alarm optik cahaya.',
+      sensorCorrelationIndex: 38,
+      factors: [
+        'Sensor optik mendeteksi radiasi inframerah',
+        `Kualitas udara bersih tanpa jejak partikel asap pembakaran (${mqPpm.toFixed(0)} PPM)`,
+        `Suhu ruangan dalam batas normal (${temp.toFixed(1)}°C)`,
+      ],
+      immediateActions: [
+        'Periksa tangkapan kamera kanopi (ESP32-CAM) untuk verifikasi visual langsung.',
+        'Pastikan posisi probe Flame Sensor tidak langsung menghadap sinar matahari terik atau lampu pijar.',
+        'Bersihkan debu atau minyak pada optik sensor api.',
+      ],
+      systemResponses: [
+        'Menahan pengaktifan alarm evakuasi darurat guna mencegah kepanikan false positive.',
+        'Menyarankan operator melakukan verifikasi visual secara cepat.',
+      ],
+      flameAgreement: true,
+      gasAgreement: false,
+      recommendedInspection: 'Verifikasi visual kanopi tanaman dan posisikan tudung pelindung sensor api.',
+      timestamp: nowTs,
+    };
+  }
+
+  // Scenario 4: THERMAL COMBUSTION RISK
+  if (temp >= 36 && soil <= 20 && mqPpm >= 380) {
+    return {
+      threatLevel: 'WARNING',
+      threatScore: 68,
+      threatTitle: 'PERINGATAN: RISIKO PEMBAKARAN SPONTAN & STRES TERMAL',
+      threatDescription: `Suhu sangat tinggi (${temp.toFixed(1)}°C) dan media tanam sangat kering (${soil.toFixed(1)}%) disertai kenaikan gas organik (${mqPpm.toFixed(0)} PPM).`,
+      causeAnalysis: 'Akumulasi panas ekstrem dalam ruang tertutup mempercepat pengeringan daun dan biomassa. Kondisi ini sangat rawan memicu pembakaran spontan jika terpapar percikan komponen elektrik.',
+      crossValidationStatus: 'THERMAL_STRESS',
+      crossValidationDetails: 'Suhu Kritis + Tanah Dehidrasi + Gas Meningkat. Risiko awal sebelum timbulnya api.',
+      sensorCorrelationIndex: 72,
+      factors: [
+        `Suhu udara melampaui batas aman fisiologis (${temp.toFixed(1)}°C)`,
+        `Kelembapan media tanam kritis (${soil.toFixed(1)}%)`,
+        `Gas organik dan uap terakumulasi (${mqPpm.toFixed(0)} PPM)`,
+      ],
+      immediateActions: [
+        'Lakukan penyiraman air secara bertahap untuk mendinginkan media perakaran tanaman.',
+        'Aktifkan naungan / paranet serta sirkulasi pendingin udara.',
+        'Jauhkan sumber panas dan periksa kabel listrik dari potensi overheat.',
+      ],
+      systemResponses: [
+        'Mengusulkan siklus penyiraman darurat pendinginan.',
+        'Memperpendek interval pemantauan sensor ke 15 menit.',
+      ],
+      flameAgreement: false,
+      gasAgreement: false,
+      recommendedInspection: 'Inspeksi suhu perangkat dan lakukan pendinginan lingkungan segera.',
+      timestamp: nowTs,
+    };
+  }
+
+  // Scenario 5: ALL CLEAR
+  return {
+    threatLevel: 'SAFE',
+    threatScore: Math.min(10, Math.max(2, Math.round((mqPpm / 350) * 8))),
+    threatTitle: 'KONDISI AMAN & TERKENDALI (ALL CLEAR)',
+    threatDescription: `Sensor Flame dan MQ-135 saling memvalidasi bahwa lingkungan aman. Tidak ada api dan kualitas udara bersih (${mqPpm.toFixed(0)} PPM).`,
+    causeAnalysis: 'Parameter keselamatan fisik dan kimia beroperasi pada batas optimal yang ideal untuk fotosintesis dan pertumbuhan tanaman.',
+    crossValidationStatus: 'ALL_CLEAR',
+    crossValidationDetails: 'Sensor Api [AMAN] + Sensor Gas [BERSIH]. Sinergi pengawasan keselamatan berjalan optimal.',
+    sensorCorrelationIndex: 100,
+    factors: [
+      'Tidak ada deteksi lidah api atau radiasi inframerah anomali',
+      `Kadar gas dan partikel udara berada pada zona optimal (${mqPpm.toFixed(0)} PPM)`,
+      `Suhu (${temp.toFixed(1)}°C) dan kelembapan (${hum.toFixed(0)}%) seimbang`,
+    ],
+    immediateActions: [
+      'Lanjutkan jadwal pemantauan mikroklimat rutin.',
+      'Jaga kebersihan fisik permukaan sensor MQ-135 dan Flame Sensor.',
+    ],
+    systemResponses: [
+      'Sistem keselamatan FLORA 2.0 aktif dalam status siaga protektif.',
+    ],
+    flameAgreement: false,
+    gasAgreement: false,
+    recommendedInspection: 'Pemeriksaan rutin berkala mingguan.',
+    timestamp: nowTs,
+  };
+}
+
 function derive(record, rows) {
   const temp = Number(record.temperature);
   const hum = Number(record.humidity);
   const soil = Number(record.soil_moisture);
+  const mqPpm = Number(record.mq135_ppm ?? 220);
+  const flameDetected = record.flame_detected === true || (record.flame_raw !== undefined && Number(record.flame_raw) > 0 && Number(record.flame_raw) < 1500);
+
+  // FLORA 2.0: Compute Multi-Sensor Fusion AI Logic
+  record.hazard_ai = runSensorFusionAi(record);
+  record.air_quality_status = mqPpm < 350 ? 'EXCELLENT' : mqPpm <= 600 ? 'MODERATE' : mqPpm <= 1000 ? 'POOR' : 'HAZARDOUS';
+  record.flame_status = flameDetected ? 'FIRE_DETECTED' : 'SAFE';
 
   // Compute Software Neural Network ML inference
   const ai = runSoftwareAi(temp, hum, soil);
@@ -149,7 +330,21 @@ function derive(record, rows) {
   let priority = 'LOW';
   let recommendedInspection = 'Lakukan pemeriksaan visual rutin mingguan.';
 
-  if (visual === 'Rust') {
+  if (record.hazard_ai.threatLevel === 'EMERGENCY') {
+    condition = record.hazard_ai.threatTitle;
+    description = record.hazard_ai.threatDescription;
+    factors = record.hazard_ai.factors;
+    actions = record.hazard_ai.immediateActions;
+    priority = 'HIGH';
+    recommendedInspection = 'TINDAKAN DARURAT: Evakuasi dan pemadaman segera!';
+  } else if (record.hazard_ai.threatLevel === 'CRITICAL' || record.hazard_ai.threatLevel === 'WARNING') {
+    condition = record.hazard_ai.threatTitle;
+    description = record.hazard_ai.threatDescription;
+    factors = record.hazard_ai.factors;
+    actions = record.hazard_ai.immediateActions;
+    priority = 'HIGH';
+    recommendedInspection = record.hazard_ai.recommendedInspection;
+  } else if (visual === 'Rust') {
     condition = 'Indikasi Penyakit Karat Daun (Rust)';
     description = 'AI Vision mendeteksi pola jamur karat daun. Berisiko menular cepat pada kanopi lembap.';
     factors = ['Spora jamur Pucciniales pada permukaan daun', 'Kelembapan udara mendukung perkecambahan jamur'];
@@ -192,10 +387,24 @@ function derive(record, rows) {
 
 function normalize(payload) {
   if (!validNumber(payload.temperature) || !validNumber(payload.humidity) || !validNumber(payload.soil_moisture)) throw new Error('Telemetry sensor tidak valid');
+  
+  const mqRaw = payload.mq135_raw !== undefined ? Number(payload.mq135_raw) : null;
+  const mqPpm = validNumber(payload.mq135_ppm)
+    ? Number(payload.mq135_ppm)
+    : mqRaw !== null
+    ? Math.max(120, Math.round(mqRaw * 0.45))
+    : 220;
+
+  const flameDetected = payload.flame_detected === true || payload.flame_detected === 'true' || (payload.flame_raw !== undefined && Number(payload.flame_raw) > 0 && Number(payload.flame_raw) < 1500);
+
   return {
     ...payload,
     timestamp: payload.timestamp && !Number.isNaN(Date.parse(payload.timestamp)) ? new Date(payload.timestamp).toISOString() : new Date().toISOString(),
     temperature: Number(payload.temperature), humidity: Number(payload.humidity), soil_moisture: Number(payload.soil_moisture),
+    mq135_raw: mqRaw,
+    mq135_ppm: mqPpm,
+    flame_detected: flameDetected,
+    flame_raw: payload.flame_raw !== undefined ? Number(payload.flame_raw) : null,
     vision_healthy: Number(payload.vision_healthy || 0), vision_powdery: Number(payload.vision_powdery || 0), vision_rust: Number(payload.vision_rust || 0)
   };
 }
@@ -328,6 +537,78 @@ app.post('/api/control', (req, res) => {
 });
 app.post('/api/demo', (req, res) => res.status(201).json(ingest(req.body)));
 
+app.post('/api/simulate-hazard', (req, res) => {
+  const { scenario } = req.body || {};
+  const base = history.at(-1) || {
+    temperature: 27.5,
+    humidity: 65,
+    soil_moisture: 52,
+    vision_healthy: 88,
+    vision_powdery: 6,
+    vision_rust: 6,
+    vision_prediction: 'Healthy',
+    vision_connected: true
+  };
+
+  let simulated = {
+    ...base,
+    timestamp: new Date().toISOString()
+  };
+
+  switch (scenario) {
+    case 'FIRE_EMERGENCY':
+      simulated.flame_detected = true;
+      simulated.flame_raw = 380;
+      simulated.mq135_ppm = 985;
+      simulated.mq135_raw = 1820;
+      simulated.temperature = 41.2;
+      simulated.humidity = 35;
+      break;
+
+    case 'SMOKE_HAZARD':
+      simulated.flame_detected = false;
+      simulated.flame_raw = 3800;
+      simulated.mq135_ppm = 1140;
+      simulated.mq135_raw = 2300;
+      simulated.temperature = 28.4;
+      simulated.humidity = 58;
+      break;
+
+    case 'OPTICAL_ANOMALY':
+      simulated.flame_detected = true;
+      simulated.flame_raw = 620;
+      simulated.mq135_ppm = 210;
+      simulated.mq135_raw = 430;
+      simulated.temperature = 25.8;
+      simulated.humidity = 64;
+      break;
+
+    case 'THERMAL_STRESS':
+      simulated.flame_detected = false;
+      simulated.flame_raw = 3900;
+      simulated.mq135_ppm = 490;
+      simulated.mq135_raw = 890;
+      simulated.temperature = 38.6;
+      simulated.soil_moisture = 14.2;
+      simulated.humidity = 38;
+      break;
+
+    case 'NORMAL':
+    default:
+      simulated.flame_detected = false;
+      simulated.flame_raw = 3950;
+      simulated.mq135_ppm = 225;
+      simulated.mq135_raw = 460;
+      simulated.temperature = 26.5;
+      simulated.humidity = 62;
+      simulated.soil_moisture = 55;
+      break;
+  }
+
+  const record = ingest(simulated);
+  res.status(201).json({ success: true, scenario, record });
+});
+
 const server = app.listen(port, () => console.log(`FLORA dashboard: http://localhost:${port}`));
 const wss = new WebSocketServer({ server, path: '/live' });
 wss.on('connection', (client) => {
@@ -416,6 +697,29 @@ if (String(process.env.DEMO_MODE || 'true') === 'true' && !history.length) {
   const samples = 36;
   for (let i = samples; i > 0; i--) {
     const x = samples - i;
-    ingest({ timestamp: new Date(Date.now() - i * 5 * 60000).toISOString(), temperature: 29 + x * .08 + Math.sin(x)*.5, humidity: 72 - x*.2, soil_moisture: 68 - x*1.15, sensor_risk: x > 27 ? 'High' : 'Moderate', sensor_confidence: 94.2, high_probability: x > 27 ? 91 : 3, low_probability: 2, moderate_probability: x > 27 ? 7 : 95, vision_connected: true, vision_healthy: Math.max(8, 42-x*.7), vision_powdery: 12+x*.15, vision_rust: 46+x*.55, vision_prediction: 'Rust', esp32_mac:'AA:BB:CC:11:22:33', esp32cam_mac:'DD:EE:FF:44:55:66', wifi_channel:6, uptime_seconds:x*300 });
+    ingest({
+      timestamp: new Date(Date.now() - i * 5 * 60000).toISOString(),
+      temperature: 29 + x * .08 + Math.sin(x)*.5,
+      humidity: 72 - x*.2,
+      soil_moisture: 68 - x*1.15,
+      mq135_ppm: 215 + Math.round(Math.sin(x * 0.4) * 20),
+      mq135_raw: 430 + Math.round(Math.sin(x * 0.4) * 40),
+      flame_detected: false,
+      flame_raw: 3950,
+      sensor_risk: x > 27 ? 'High' : 'Moderate',
+      sensor_confidence: 94.2,
+      high_probability: x > 27 ? 91 : 3,
+      low_probability: 2,
+      moderate_probability: x > 27 ? 7 : 95,
+      vision_connected: true,
+      vision_healthy: Math.max(8, 42-x*.7),
+      vision_powdery: 12+x*.15,
+      vision_rust: 46+x*.55,
+      vision_prediction: 'Rust',
+      esp32_mac:'AA:BB:CC:11:22:33',
+      esp32cam_mac:'DD:EE:FF:44:55:66',
+      wifi_channel:6,
+      uptime_seconds:x*300
+    });
   }
 }

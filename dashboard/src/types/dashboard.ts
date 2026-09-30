@@ -1,3 +1,27 @@
+export type HazardThreatLevel = 'SAFE' | 'ADVISORY' | 'WARNING' | 'CRITICAL' | 'EMERGENCY';
+
+export type FlameSensorStatus = 'SAFE' | 'WARNING' | 'FIRE_DETECTED';
+
+export type AirQualityStatus = 'EXCELLENT' | 'GOOD' | 'MODERATE' | 'POOR' | 'HAZARDOUS';
+
+export interface SensorFusionAnalysis {
+  threatLevel: HazardThreatLevel;
+  threatScore: number; // 0 - 100%
+  threatTitle: string;
+  threatDescription: string;
+  causeAnalysis: string;
+  crossValidationStatus: 'CONFIRMED_HAZARD' | 'SMOLDERING_SUSPECTED' | 'OPTICAL_FALSE_ALARM' | 'THERMAL_STRESS' | 'ALL_CLEAR';
+  crossValidationDetails: string;
+  sensorCorrelationIndex: number; // 0 - 100% agreement score
+  factors: string[];
+  immediateActions: string[];
+  systemResponses: string[];
+  flameAgreement: boolean;
+  gasAgreement: boolean;
+  recommendedInspection: string;
+  timestamp: string;
+}
+
 export interface ConditionDetails {
   title: string;
   description: string;
@@ -13,6 +37,20 @@ export interface TelemetryRecord {
   humidity: number;
   soil_moisture: number;
   soil_raw?: number;
+  
+  // FLORA 2.0: MQ-135 Air Quality & Hazardous Gas
+  mq135_raw?: number;
+  mq135_ppm?: number;
+  air_quality_status?: AirQualityStatus | string;
+
+  // FLORA 2.0: Flame / Fire Detection Sensor
+  flame_detected?: boolean;
+  flame_raw?: number;
+  flame_status?: FlameSensorStatus | string;
+
+  // FLORA 2.0: Collaborative Multi-Sensor AI Logic
+  hazard_ai?: SensorFusionAnalysis;
+
   sensor_risk?: 'Low' | 'Moderate' | 'High' | string;
   sensor_confidence?: number;
   high_probability?: number;
@@ -106,6 +144,8 @@ export interface ThresholdConfig {
   humidityLow: number;
   humidityHigh: number;
   consecutive: number;
+  mq135WarningPpm?: number;
+  mq135HazardPpm?: number;
 }
 
 export interface WateringEvent {

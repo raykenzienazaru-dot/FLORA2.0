@@ -148,7 +148,7 @@ export const SmartWateringPanel: React.FC<SmartWateringPanelProps> = ({
   const hasMoisture = moistureVal !== undefined && moistureVal !== null && !isNaN(Number(moistureVal));
 
   return (
-    <section className="flora-card p-6 flex flex-col justify-between shadow-xs">
+    <section className="flora-card p-6 flex flex-col justify-between shadow-xs h-full">
       <div>
         {/* 1. CURRENT CONDITION */}
         <div className="mb-4">
@@ -267,21 +267,21 @@ export const SmartWateringPanel: React.FC<SmartWateringPanelProps> = ({
             </p>
           </div>
         )}
+      </div>
 
-        {/* 5. AUTOMATIC WATERING (Quiet Secondary Note) */}
-        <div className="mt-4 pt-3 border-t border-[#E4EBE0]">
-          <div className="flex items-center justify-between text-xs text-[#617253] mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#617253]">
-              Automatic Watering
-            </span>
-            <span className="text-[11px] font-medium text-[#617253]/80">
-              Not connected
-            </span>
-          </div>
-          <p className="text-[11px] text-[#617253]/80 m-0 leading-relaxed">
-            Automatic watering will be available when an irrigation actuator is connected.
-          </p>
+      {/* 5. AUTOMATIC WATERING (Quiet Secondary Note) */}
+      <div className="mt-4 pt-3 border-t border-[#E4EBE0]">
+        <div className="flex items-center justify-between text-xs text-[#617253] mb-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#617253]">
+            Automatic Watering
+          </span>
+          <span className="text-[11px] font-medium text-[#617253]/80">
+            Not connected
+          </span>
         </div>
+        <p className="text-[11px] text-[#617253]/80 m-0 leading-relaxed">
+          Automatic watering will be available when an irrigation actuator is connected.
+        </p>
       </div>
     </section>
   );

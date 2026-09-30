@@ -1,35 +1,69 @@
-# FLORA Smart Plant Monitoring System
+# FLORA 2.0 — Smart Plant Monitoring & AI Hazard Safety System
 
-FLORA adalah prototype pemantauan tanaman yang menggabungkan ESP32, ESP32-CAM, sensor lingkungan, AI, ESP-NOW, MQTT, dan dashboard web.
+**FLORA 2.0** adalah sistem pemantauan tanaman cerdas dan keselamatan lingkungan mikroklimat generasi kedua berbasis ESP32, ESP32-CAM, sensor mikroklimat (DHT22, Soil Capacitive), sensor keselamatan (MQ-135 Gas & Smoke, Flame Sensor IR), ESP-NOW Mesh, MQTT, dan Dashboard Web interaktif dengan **AI Sensor Fusion Rule-Based Logic**.
 
-## Struktur project
+---
 
-- `dashboard/` — dashboard Vite statis dengan MQTT-over-WSS langsung untuk monitoring, kontrol L298N, dan pratinjau JPEG ESP32-CAM.
-- `firmware/esp32_main/` — pembacaan sensor, environmental ML, penerima ESP-NOW, L298N, penerima kontrol MQTT, dan publisher telemetry/JPEG MQTT.
-- `firmware/esp32_cam/` — inferensi AI daun, pengirim JPEG ESP-NOW, dan penerima permintaan capture dari ESP32 utama.
-- `.md` — spesifikasi lengkap, arsitektur, tahapan implementasi, serta daftar fitur yang belum aktif.
+## 🌟 Fitur Utama FLORA 2.0
 
-## Menjalankan dashboard
+1. **5-Sensor Telemetry Stream Realtime:**
+   - **Suhu Udara (DHT22):** Monitoring suhu mikroklimat kanopi (°C).
+   - **Kelembapan Udara (DHT22):** Kelembapan relatif (% RH).
+   - **Kadar Air Tanah (Kapasitif v1.2):** Analog ADC monitoring kelembapan substrat akar.
+   - **Kualitas Gas & Asap (MQ-135):** Deteksi konsentrasi gas berbahaya, asap rokok, CO2, dan partikel VOC (PPM).
+   - **Detektor Nyala Api (Optical Flame Sensor IR):** Deteksi radiasi nyala api pada spektrum 760–1100 nm.
 
-```powershell
+2. **AI Hazard Sensor Fusion Logic (Non-Dataset Rule-Based):**
+   - **Mutual Cross-Validation Matrix:** Sinergi dan verifikasi silang antara sensor gas/asap MQ-135 dan sensor api optik IR untuk menolak *false positive* (misal: pantulan cahaya matahari) dan mengonfirmasi bahaya nyata.
+   - **Skenario Deteksi Bahaya Cerdas:**
+     - **Api + Asap (Kebakaran Nyata):** *CRITICAL EMERGENCY* (Sirene darurat, isolasi aktuator).
+     - **Asap Saja (Smoldering):** *HIGH RISK* (Bara sekam / korsleting kabel tanpa lidah api).
+     - **Api Tanpa Asap (Silau Matahari):** *OPTICAL ADVISORY* (Anomali optik tertolak, tidak memicu alarm palsu).
+     - **Overheat & Dehidrasi:** *WARNING* (Pencegahan pembakaran spontan).
+     - **Normal & Aman:** Kondisi mikroklimat optimal.
+   - **Interactive Hazard Simulator Bench:** 6 tombol simulasi terintegrasi di dashboard untuk pengujian AI Logic tanpa membakar sensor fisik.
+
+3. **Software AI Vision & Agronomic Decision Support:**
+   - Klasifikasi kanopi daun (Healthy, Powdery Mildew, Leaf Rust) via ESP32-CAM & ESP-NOW.
+   - Algoritma rekomendasi penyiraman cerdas berbasis status kadar air tanah aktual.
+
+4. **Sistem Topology & Kontrol Aktuator:**
+   - Kontrol manual carriage scanner optik (L298N Motor Driver) dengan interlock limit switch keamanan.
+   - Topology status perangkat keras 12-node simetris.
+
+---
+
+## 📁 Struktur Proyek
+
+- `dashboard/` — Dashboard frontend Vite + React + TypeScript dan server backend Node.js / Express / WebSocket.
+- `firmware/`
+  - `ARDUINO_IDE_FLORA2_GUIDE.md` — Panduan lengkap pinout wiring, skrip sampling C++, dan format payload JSON untuk Arduino IDE.
+  - `esp32_main/` — Firmware ESP32 utama.
+  - `esp32_cam/` — Firmware ESP32-CAM AI Vision.
+
+---
+
+## 🚀 Cara Menjalankan Dashboard
+
+```bash
+# 1. Masuk ke direktori dashboard
 cd dashboard
-Copy-Item .env.example .env
+
+# 2. Install dependensi
 npm install
-npm start
+
+# 3. Jalankan server backend telemetri & AI Logic
+node server.js
+
+# 4. Di terminal baru, jalankan frontend Vite
+npm run dev
 ```
 
-Buka `http://localhost:5173`. Konfigurasi perangkat dan MQTT berada di `dashboard/src/config/device.ts`, sehingga dashboard dapat dideploy sebagai static site Vercel tanpa `.env`.
+Buka browser di `http://localhost:5173` untuk melihat dashboard FLORA 2.0.
 
-## Status saat ini
+---
 
-Dashboard, API, WebSocket, penyimpanan history lokal, decision support, smart watering recommendation, ringkasan harian, dan tren sudah tersedia. Integrasi AI Vision asli, kamera/foto, soil sensor fisik, database production, notifikasi eksternal, penyiraman otomatis, autentikasi, export laporan, serta deployment production belum aktif.
+## 🔒 Catatan Keamanan & Kalibrasi
 
-Daftar status yang lebih lengkap tersedia pada bagian **50. Status Implementasi dan Fitur yang Belum Aktif** di file [`.md`](.md).
-
-## Keamanan
-
-Salin file konfigurasi contoh menjadi file konfigurasi lokal. File `.env`, `config.h`, data history, dan model lokal tidak diikutkan ke Git. Jangan memasukkan kredensial asli ke file `*.example`.
-
-## Catatan
-
-Hasil AI merupakan indikasi pendukung dan bukan diagnosis penyakit tanaman yang pasti. Threshold sensor harus dikalibrasi sesuai spesies, media tanam, dan perangkat fisik.
+- Pembacaan sensor MQ-135 memerlukan waktu preheating awal sekitar 2–3 menit untuk akurasi optimal.
+- Logika AI Fusi dirancang untuk memprioritaskan keselamatan tanaman dan pengguna dengan prinsip *fail-safe*.

@@ -61,7 +61,7 @@ export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({ latest
   const actionList = getActionList();
 
   return (
-    <section className="flora-card p-6 flex flex-col justify-between shadow-xs">
+    <section className="flora-card p-6 flex flex-col justify-between shadow-xs h-full">
       <div>
         {/* Header */}
         <div className="flex justify-between items-start mb-3">

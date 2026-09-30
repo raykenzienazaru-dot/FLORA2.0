@@ -77,10 +77,31 @@ export const DeviceHealthSection: React.FC<DeviceHealthSectionProps> = ({
     ? 'UNKNOWN'
     : 'OFFLINE';
 
-  // 8. Motor / Carriage
+  // 8. MQ-135 Gas & Smoke
+  const mqStatus = !latest
+    ? 'UNKNOWN'
+    : isOnline && (latest.mq135_ppm !== undefined || latest.mq135_raw !== undefined)
+    ? 'STREAMING'
+    : isOnline
+    ? 'ONLINE (STANDBY)'
+    : 'OFFLINE';
+
+  // 9. Optical Flame Sensor
+  const flameStatus = !latest
+    ? 'UNKNOWN'
+    : isOnline && latest.flame_detected !== undefined
+    ? latest.flame_detected ? 'FIRE DETECTED' : 'STREAMING (CLEAR)'
+    : isOnline
+    ? 'ONLINE (STANDBY)'
+    : 'OFFLINE';
+
+  // 10. Motor / Carriage
   const motorStatus = 'READY (NO FEEDBACK)';
 
-  // 9. Limit Switches
+  // 11. Water Pump Relay
+  const pumpStatus = 'READY (RELAY STANDBY)';
+
+  // 12. Limit Switches
   const leftText = latest?.limit_left === true
     ? 'ACTIVE'
     : latest?.limit_left === false
@@ -96,11 +117,15 @@ export const DeviceHealthSection: React.FC<DeviceHealthSectionProps> = ({
     switch (status) {
       case 'CONNECTED':
       case 'STREAMING':
+      case 'STREAMING (CLEAR)':
       case 'ACTIVE':
         return 'bg-[#367C29]';
       case 'CONNECTING':
+      case 'ONLINE (STANDBY)':
       case 'READY (NO FEEDBACK)':
+      case 'READY (RELAY STANDBY)':
         return 'bg-[#D97706]';
+      case 'FIRE DETECTED':
       case 'DISCONNECTED':
       case 'OFFLINE':
         return 'bg-[#DC2626]';
@@ -131,7 +156,7 @@ export const DeviceHealthSection: React.FC<DeviceHealthSectionProps> = ({
       detail: 'Client-Server Live Channel',
     },
     {
-      label: 'ESP-NOW Link',
+      label: 'ESP-NOW Mesh Link',
       status: espNowStatus,
       detail: 'Inter-Board Wireless Mesh',
     },
@@ -141,14 +166,29 @@ export const DeviceHealthSection: React.FC<DeviceHealthSectionProps> = ({
       detail: 'Temperature & Air Humidity',
     },
     {
-      label: 'Soil Moisture Probe',
+      label: 'Soil Capacitive Probe',
       status: soilStatus,
-      detail: 'Simulated in firmware (70%)',
+      detail: 'Kapasitif v1.2 Analog ADC',
     },
     {
-      label: 'Scanner Motor',
+      label: 'MQ-135 Gas & Smoke',
+      status: mqStatus,
+      detail: latest?.mq135_ppm ? `${latest.mq135_ppm} PPM · CO2/VOC/Smoke` : 'Chemical Sniffer Sensor',
+    },
+    {
+      label: 'Optical Flame Sensor',
+      status: flameStatus,
+      detail: '760–1100 nm IR Phototransistor',
+    },
+    {
+      label: 'Scanner Motor Drive',
       status: motorStatus,
-      detail: 'Open-loop Carriage Drive',
+      detail: 'L298N Carriage Actuator',
+    },
+    {
+      label: 'Irrigation Pump Relay',
+      status: pumpStatus,
+      detail: '5V Optocoupler Solenoid/Pump',
     },
   ];
 
@@ -186,42 +226,49 @@ export const DeviceHealthSection: React.FC<DeviceHealthSectionProps> = ({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      {/* Perfectly balanced 12-Card Grid (3 rows x 4 columns on desktop, 4x3 on tablet, 6x2 on mobile) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 items-stretch">
         {devices.map((dev) => (
-          <article key={dev.label} className="flora-card p-4 shadow-xs">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] font-bold text-[#617253] uppercase tracking-wider">
-                {dev.label}
+          <article key={dev.label} className="flora-card p-4 shadow-xs h-full flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center mb-1.5 gap-2">
+                <span className="text-[10px] font-bold text-[#617253] uppercase tracking-wider truncate">
+                  {dev.label}
+                </span>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${getDotClass(dev.status)}`} />
+              </div>
+              <span className={`text-sm font-bold block font-display ${
+                dev.status === 'FIRE DETECTED' ? 'text-red-600 animate-pulse' : 'text-[#1B2408]'
+              }`}>
+                {dev.status}
               </span>
-              <span className={`w-2 h-2 rounded-full ${getDotClass(dev.status)}`} />
             </div>
-            <span className="text-sm font-bold text-[#1B2408] block font-display">
-              {dev.status}
-            </span>
-            <span className="text-[11px] font-mono text-[#617253] block mt-1 truncate">
+            <span className="text-[11px] font-mono text-[#617253] block mt-2 pt-2 border-t border-[#E4EBE0]/60 truncate">
               {dev.detail}
             </span>
           </article>
         ))}
 
-        {/* 9th Card: Limit Switches */}
-        <article className="flora-card p-4 shadow-xs">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-bold text-[#617253] uppercase tracking-wider">
-              Limit Switches
-            </span>
-            <span className={`w-2 h-2 rounded-full ${leftText === 'ACTIVE' || rightText === 'ACTIVE' ? 'bg-[#DC2626]' : 'bg-[#367C29]'}`} />
+        {/* 12th Card: Endstop Limit Switches */}
+        <article className="flora-card p-4 shadow-xs h-full flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-center mb-1.5 gap-2">
+              <span className="text-[10px] font-bold text-[#617253] uppercase tracking-wider truncate">
+                Limit Switches
+              </span>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${leftText === 'ACTIVE' || rightText === 'ACTIVE' ? 'bg-[#DC2626]' : 'bg-[#367C29]'}`} />
+            </div>
+            <div className="flex items-center gap-2 text-sm font-bold font-display">
+              <span className={leftText === 'ACTIVE' ? 'text-[#DC2626]' : leftText === 'CLEAR' ? 'text-[#22531A]' : 'text-[#617253]'}>
+                L: {leftText}
+              </span>
+              <span className="text-[#617253]/40">|</span>
+              <span className={rightText === 'ACTIVE' ? 'text-[#DC2626]' : rightText === 'CLEAR' ? 'text-[#22531A]' : 'text-[#617253]'}>
+                R: {rightText}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm font-bold font-display mt-0.5">
-            <span className={leftText === 'ACTIVE' ? 'text-[#DC2626]' : leftText === 'CLEAR' ? 'text-[#22531A]' : 'text-[#617253]'}>
-              L: {leftText}
-            </span>
-            <span className="text-[#617253]/40">|</span>
-            <span className={rightText === 'ACTIVE' ? 'text-[#DC2626]' : rightText === 'CLEAR' ? 'text-[#22531A]' : 'text-[#617253]'}>
-              R: {rightText}
-            </span>
-          </div>
-          <span className="text-[11px] text-[#617253] block mt-1">
+          <span className="text-[11px] font-mono text-[#617253] block mt-2 pt-2 border-t border-[#E4EBE0]/60 truncate">
             Endstop Safety Interlock
           </span>
         </article>

@@ -19,12 +19,15 @@ import { HistoryTrendsSection } from './components/dashboard/HistoryTrendsSectio
 import { RecommendationPanel } from './components/dashboard/RecommendationPanel';
 import { DailySummaryPanel } from './components/dashboard/DailySummaryPanel';
 import { DeviceHealthSection } from './components/dashboard/DeviceHealthSection';
+import { HazardEmergencyBanner } from './components/dashboard/HazardEmergencyBanner';
+import { AiHazardFusionPanel } from './components/dashboard/AiHazardFusionPanel';
 import { Footer } from './components/dashboard/Footer';
 import { Toast } from './components/dashboard/Toast';
 
 const sectionIds = [
   'overview',
   'monitoring',
+  'hazard-safety',
   'analysis',
   'cameraCapture',
   'device-control',
@@ -34,12 +37,19 @@ const sectionIds = [
 ];
 
 export const App: React.FC = () => {
-  const [expStage, setExpStage] = useState<'boot' | 'plant' | 'dashboard'>('boot');
+  const [expStage, setExpStage] = useState<'boot' | 'plant' | 'dashboard'>(() => {
+    return sessionStorage.getItem('flora_dashboard_entered') === 'true' ? 'dashboard' : 'boot';
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const { message, visible, showToast } = useToast();
   const { data, systemState, systemStatus, wsStatus, refresh, recordWatering } = useDashboard(showToast);
   const activeSection = useScrollSpy(sectionIds, 140);
   const { relativeText } = useRelativeTime(data?.latest?.timestamp);
+
+  const handleEnterDashboard = () => {
+    sessionStorage.setItem('flora_dashboard_entered', 'true');
+    setExpStage('dashboard');
+  };
 
   const handleNavigate = (sectionId: string) => {
     const el = document.getElementById(sectionId);
@@ -58,16 +68,16 @@ export const App: React.FC = () => {
       {/* 1. Splash Screen Boot Sequence */}
       {expStage === 'boot' && (
         <SplashScreen
-          onBootComplete={() => setExpStage('dashboard')}
-          onSkip={() => setExpStage('dashboard')}
+          onBootComplete={handleEnterDashboard}
+          onSkip={handleEnterDashboard}
         />
       )}
 
       {/* 2. 3D Intro Experience */}
       {expStage === 'plant' && (
         <Plant3DExperience
-          onComplete={() => setExpStage('dashboard')}
-          onSkip={() => setExpStage('dashboard')}
+          onComplete={handleEnterDashboard}
+          onSkip={handleEnterDashboard}
         />
       )}
 
@@ -95,6 +105,12 @@ export const App: React.FC = () => {
               lastTelemetryText={systemStatus.lastUpdateText || relativeText}
             />
 
+            {/* FLORA 2.0 Critical Fire & Gas Hazard Emergency Banner */}
+            <HazardEmergencyBanner
+              latest={data?.latest || null}
+              onNavigateToSafety={() => handleNavigate('hazard-safety')}
+            />
+
             {/* In-Dashboard Realtime Status & Alert Banner */}
             <div className="mb-6">
               <InDashboardAlert
@@ -108,10 +124,16 @@ export const App: React.FC = () => {
               {/* 1. Overview & 4-Pillar Plant Insight */}
               <HeroOverview latest={data?.latest || null} />
 
-              {/* 2. Live Telemetry with Interpretation */}
+              {/* 2. Live Telemetry with Interpretation (5 Sensors) */}
               <LiveMonitoring
                 latest={data?.latest || null}
                 config={data?.config}
+              />
+
+              {/* 3. FLORA 2.0: AI Multi-Sensor Safety & Fire Defense Panel */}
+              <AiHazardFusionPanel
+                latest={data?.latest || null}
+                onToast={showToast}
               />
 
               {/* 3. Plant Intelligence (Environmental AI + AI Vision) */}

@@ -115,6 +115,28 @@ export const HeroOverview: React.FC<HeroOverviewProps> = ({ latest }) => {
               </span>
             </div>
 
+            {/* FLORA 2.0 MQ-135 Gas Pill */}
+            <div className="bg-[#141D04] border border-[#2C3B0E] px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs">
+              <span className="text-[#C3D883] text-[11px]">Gas (MQ-135)</span>
+              <span className={`font-bold font-tabular ${
+                (latest?.mq135_ppm ?? 0) > 600 ? 'text-amber-400' : 'text-white'
+              }`}>
+                {latest?.mq135_ppm !== undefined ? `${latest.mq135_ppm} PPM` : '—'}
+              </span>
+            </div>
+
+            {/* FLORA 2.0 Flame Sensor Pill */}
+            <div className={`px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs border ${
+              latest?.flame_detected
+                ? 'bg-red-950/80 border-red-500 text-red-300 animate-pulse'
+                : 'bg-[#141D04] border-[#2C3B0E] text-white'
+            }`}>
+              <span className="text-[#C3D883] text-[11px]">Flame</span>
+              <span className={`font-bold ${latest?.flame_detected ? 'text-red-400' : 'text-white'}`}>
+                {latest?.flame_detected === true ? '🔥 TERDETEKSI' : 'Aman'}
+              </span>
+            </div>
+
             {latest?.vision_prediction && (
               <div className="bg-[#141D04] border border-[#2C3B0E] px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs">
                 <span className="text-[#C3D883] text-[11px]">AI Vision</span>

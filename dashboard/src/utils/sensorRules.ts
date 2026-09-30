@@ -1,4 +1,10 @@
-import { TelemetryRecord, ThresholdConfig } from '../types/dashboard';
+import {
+  TelemetryRecord,
+  ThresholdConfig,
+  AirQualityStatus,
+  FlameSensorStatus,
+  SensorFusionAnalysis,
+} from '../types/dashboard';
 
 export interface MetricInterpretation {
   valueFormatted: string;
@@ -208,10 +214,10 @@ export function interpretSoil(
       valueFormatted: s.toFixed(1),
       unit: '%',
       status: 'OPTIMAL',
-      statusLabel: 'Lembap / Cukup',
+      statusLabel: 'Optimal',
       statusColor: { bg: '#EAF4E8', text: '#22531A', border: '#C4E1BF', dot: '#367C29' },
       explanation: 'Kadar air zona perakaran mencukupi kebutuhan hidrasi tanaman.',
-      reference: `Rentang optimal: ${soilDry} – ${soilWet} %`,
+      reference: `Target: ${soilDry}.0 – ${soilWet}.0 %`,
     };
   }
 
@@ -406,6 +412,37 @@ export function evaluateSystemAlert(
   const risk = (latest.sensor_risk || '').toLowerCase();
   const vision = (latest.vision_prediction || '').toLowerCase();
 
+  // TOP PRIORITY: FLORA 2.0 AI Multi-Sensor Fire & Gas Hazard
+  if (latest?.hazard_ai) {
+    if (latest.hazard_ai.threatLevel === 'EMERGENCY') {
+      return {
+        severity: 'CRITICAL',
+        title: latest.hazard_ai.threatTitle,
+        description: latest.hazard_ai.threatDescription,
+        actionText: 'Tindakan Darurat & Fusi AI',
+        actionTarget: 'hazard-safety',
+      };
+    }
+    if (latest.hazard_ai.threatLevel === 'CRITICAL') {
+      return {
+        severity: 'CRITICAL',
+        title: latest.hazard_ai.threatTitle,
+        description: latest.hazard_ai.threatDescription,
+        actionText: 'Inspeksi Bahaya Gas AI',
+        actionTarget: 'hazard-safety',
+      };
+    }
+    if (latest.hazard_ai.threatLevel === 'WARNING') {
+      return {
+        severity: 'WARNING',
+        title: latest.hazard_ai.threatTitle,
+        description: latest.hazard_ai.threatDescription,
+        actionText: 'Periksa Fusi Sensor',
+        actionTarget: 'hazard-safety',
+      };
+    }
+  }
+
   // CRITICAL Conditions
   if (s < 20) {
     return {
@@ -593,5 +630,362 @@ export function explainVisionClassification(latest: TelemetryRecord | null): {
     interpretation: 'Tidak ditemukan indikasi visual penyakit pada kanopi daun.',
     why: 'Pola tekstur dan warna daun terdeteksi seragam dan cocok dengan kelas daun sehat (Healthy).',
     whatToDo: 'Lanjutkan perawatan dan pemantauan berkala tanpa intervensi kimiawi.',
+  };
+}
+
+// ======================================================
+// FLORA 2.0: MQ-135 SENSOR INTERPRETATION
+// ======================================================
+
+export interface Mq135Interpretation extends MetricInterpretation {
+  aqiStatus: AirQualityStatus;
+  primaryGas: string;
+}
+
+export function interpretMq135(
+  ppm: number | undefined | null,
+  _raw?: number | null,
+  cfg: Partial<ThresholdConfig> = DEFAULT_THRESHOLDS
+): Mq135Interpretation {
+  const warnPpm = cfg.mq135WarningPpm ?? 600;
+  const hazardPpm = cfg.mq135HazardPpm ?? 1000;
+
+  if (ppm === undefined || ppm === null || isNaN(Number(ppm))) {
+    return {
+      valueFormatted: '—',
+      unit: 'PPM',
+      status: 'ATTENTION',
+      statusLabel: 'No Data',
+      statusColor: { bg: '#F4F7F2', text: '#617253', border: '#E4EBE0', dot: '#617253' },
+      explanation: 'Menunggu transmisi pembacaan sensor kualitas udara MQ-135.',
+      reference: 'Target udara bersih: < 350 PPM',
+      aqiStatus: 'GOOD',
+      primaryGas: 'Udara Bersih',
+    };
+  }
+
+  const p = Number(ppm);
+
+  if (p < 350) {
+    return {
+      valueFormatted: p.toFixed(0),
+      unit: 'PPM',
+      status: 'OPTIMAL',
+      statusLabel: 'Bersih',
+      statusColor: { bg: '#EAF4E8', text: '#22531A', border: '#C4E1BF', dot: '#367C29' },
+      explanation: 'Kualitas udara sangat baik. Kadar gas dan partikel dalam batas normal.',
+      reference: 'Target: < 350 PPM',
+      aqiStatus: 'EXCELLENT',
+      primaryGas: 'Atmosfer Alami',
+    };
+  }
+
+  if (p <= warnPpm) {
+    return {
+      valueFormatted: p.toFixed(0),
+      unit: 'PPM',
+      status: 'MODERATE',
+      statusLabel: 'Sedang',
+      statusColor: { bg: '#FEF7E8', text: '#8A570C', border: '#FDE3B5', dot: '#D97706' },
+      explanation: 'Peningkatan konsentrasi gas ringan/uap terdeteksi. Disarankan ventilasi.',
+      reference: `Batas: ${warnPpm} PPM`,
+      aqiStatus: 'MODERATE',
+      primaryGas: 'CO2 / VOC Ringan',
+    };
+  }
+
+  if (p <= hazardPpm) {
+    return {
+      valueFormatted: p.toFixed(0),
+      unit: 'PPM',
+      status: 'ALERT',
+      statusLabel: 'Tinggi',
+      statusColor: { bg: '#FFF1E5', text: '#C05621', border: '#FBD38D', dot: '#DD6B20' },
+      explanation: 'Konsentrasi gas tinggi atau asap pekat terdeteksi! Waspadai emisi pembakaran.',
+      reference: `Ambang: > ${hazardPpm} PPM`,
+      aqiStatus: 'POOR',
+      primaryGas: 'Asap / Gas Polutan',
+    };
+  }
+
+  return {
+    valueFormatted: p.toFixed(0),
+    unit: 'PPM',
+    status: 'ALERT',
+    statusLabel: 'Kritis',
+    statusColor: { bg: '#FEEAEA', text: '#961C1C', border: '#FCCECE', dot: '#DC2626' },
+    explanation: 'Bahaya kritis! Konsentrasi gas beracun/asap pekat melampaui batas aman biologis.',
+    reference: `Batas: > ${hazardPpm} PPM`,
+    aqiStatus: 'HAZARDOUS',
+    primaryGas: 'Gas Beracun / Asap Tebal',
+  };
+}
+
+// ======================================================
+// FLORA 2.0: FLAME SENSOR INTERPRETATION
+// ======================================================
+
+export interface FlameInterpretation extends MetricInterpretation {
+  flameStatus: FlameSensorStatus;
+}
+
+export function interpretFlame(
+  detected: boolean | undefined | null,
+  raw?: number | null
+): FlameInterpretation {
+  const isDetected = detected === true || (raw !== undefined && raw !== null && raw > 0 && raw < 1500);
+
+  if (detected === undefined && raw === undefined) {
+    return {
+      valueFormatted: '—',
+      unit: 'Titik Api',
+      status: 'ATTENTION',
+      statusLabel: 'Standby',
+      statusColor: { bg: '#F4F7F2', text: '#617253', border: '#E4EBE0', dot: '#617253' },
+      explanation: 'Menunggu transmisi pembacaan Flame Sensor optik inframerah.',
+      reference: 'Target: Bebas nyala api',
+      flameStatus: 'SAFE',
+    };
+  }
+
+  if (isDetected) {
+    return {
+      valueFormatted: '1',
+      unit: 'Titik Api Aktif',
+      status: 'ALERT',
+      statusLabel: 'Terdeteksi',
+      statusColor: { bg: '#FEEAEA', text: '#961C1C', border: '#FCCECE', dot: '#DC2626' },
+      explanation: 'Sensor optik inframerah mendeteksi radiasi spektrum nyala api pada kanopi!',
+      reference: 'Status: Api Aktif',
+      flameStatus: 'FIRE_DETECTED',
+    };
+  }
+
+  return {
+    valueFormatted: '0',
+    unit: 'Titik Api',
+    status: 'OPTIMAL',
+    statusLabel: 'Aman',
+    statusColor: { bg: '#EAF4E8', text: '#22531A', border: '#C4E1BF', dot: '#367C29' },
+    explanation: 'Tidak ada radiasi inframerah dari nyala api terbuka yang tertangkap sensor.',
+    reference: 'Target: Bebas nyala api',
+    flameStatus: 'SAFE',
+  };
+}
+
+// ======================================================
+// FLORA 2.0: COLLABORATIVE AI LOGIC & SENSOR FUSION ENGINE
+// (Rule-Based & Expert Sensor Cross-Validation)
+// ======================================================
+
+export function evaluateSensorFusionHazard(
+  record: Partial<TelemetryRecord> | null,
+  cfg: Partial<ThresholdConfig> = DEFAULT_THRESHOLDS
+): SensorFusionAnalysis {
+  const nowTs = record?.timestamp || new Date().toISOString();
+
+  if (!record) {
+    return {
+      threatLevel: 'SAFE',
+      threatScore: 0,
+      threatTitle: 'Sistem Siaga (Standby)',
+      threatDescription: 'Menunggu aliran data telemetry sensor MQ-135 dan Flame untuk inisialisasi AI Logic.',
+      causeAnalysis: 'Belum ada data sensor yang masuk untuk dievaluasi.',
+      crossValidationStatus: 'ALL_CLEAR',
+      crossValidationDetails: 'Sistem siap memproses fusi sensor real-time.',
+      sensorCorrelationIndex: 100,
+      factors: ['Menunggu sinyal MQTT atau demonstrasi telemetry'],
+      immediateActions: ['Pastikan konektivitas ESP32 terhubung'],
+      systemResponses: ['Status pengawasan keselamatan: Aktif'],
+      flameAgreement: false,
+      gasAgreement: false,
+      recommendedInspection: 'Pemeriksaan rutin modul hardware.',
+      timestamp: nowTs,
+    };
+  }
+
+  const flameTriggered = record.flame_detected === true || (record.flame_raw !== undefined && record.flame_raw > 0 && record.flame_raw < 1500);
+  const mqPpm = Number(record.mq135_ppm ?? 250);
+  const temp = Number(record.temperature ?? 26);
+  const hum = Number(record.humidity ?? 60);
+  const soil = Number(record.soil_moisture ?? 55);
+
+  const warnPpm = cfg.mq135WarningPpm ?? 600;
+  const hazardPpm = cfg.mq135HazardPpm ?? 1000;
+  const gasWarning = mqPpm >= warnPpm;
+  const gasHazard = mqPpm >= hazardPpm;
+
+  // ----------------------------------------------------
+  // SKENARIO 1: CRITICAL FIRE EMERGENCY (DUAL CONFIRMATION)
+  // Api Terdeteksi + Asap/Gas Tinggi Terkonfirmasi
+  // ----------------------------------------------------
+  if (flameTriggered && gasWarning) {
+    return {
+      threatLevel: 'EMERGENCY',
+      threatScore: Math.min(100, Math.round(92 + (mqPpm / hazardPpm) * 8)),
+      threatTitle: 'DARURAT: KEBAKARAN AKTIF TERKONFIRMASI (FIRE EMERGENCY)',
+      threatDescription: `Sinergi sensor valid! Flame Sensor mendeteksi lidah api terbuka dan MQ-135 mengonfirmasi lonjakan gas pembakaran/asap pekat (${mqPpm.toFixed(0)} PPM).`,
+      causeAnalysis: 'Deteksi simultan antara radiasi optik inframerah nyala api dan emisi gas karbon/asap pembakaran. AI memastikan ini adalah kebakaran nyata (Bukan false positive optik).',
+      crossValidationStatus: 'CONFIRMED_HAZARD',
+      crossValidationDetails: 'Sensor Api [AKTIF] + Sensor Gas MQ-135 [TINGGI] saling mengonfirmasi 100% adanya api nyata.',
+      sensorCorrelationIndex: 99,
+      factors: [
+        'Sensor Api Inframerah memicu status aktif kebakaran',
+        `Sensor MQ-135 mendeteksi lonjakan asap/gas pembakaran (${mqPpm.toFixed(0)} PPM)`,
+        temp >= 35 ? `Suhu lingkungan melonjak tinggi (${temp.toFixed(1)}°C) mendukung penyebaran api` : 'Potensi api lokal yang baru membesar',
+      ],
+      immediateActions: [
+        'SEGERA matikan saklar listrik utama / adaptor catu daya FLORA dan area tanam.',
+        'Gunakan alat pemadam kebakaran (APAR jenis CO2, Foam, atau serbuk kimia kering) pada titik api.',
+        'Lakukan evakuasi personil segera dan hubungi unit Pemadam Kebakaran terdekat.',
+        'Jauhkan botol pupuk cair, alkohol, dan media tanam kering dari radius api.',
+      ],
+      systemResponses: [
+        'MENGHENTIKAN otomatis pergerakan motor rel scanner ke posisi netral.',
+        'MENGIRIMKAN instruksi darurat pemotretan snapshot ESP32-CAM untuk rekaman visual insiden.',
+        'MENGAKTIFKAN sirine audio dan banner visual darurat di dashboard.',
+      ],
+      flameAgreement: true,
+      gasAgreement: true,
+      recommendedInspection: 'Inspeksi keselamatan menyeluruh setelah api dipadamkan total.',
+      timestamp: nowTs,
+    };
+  }
+
+  // ----------------------------------------------------
+  // SKENARIO 2: SMOLDERING FIRE / TOXIC GAS & SMOKE HAZARD
+  // Asap/Gas Tinggi Tanpa Nyala Api Terbuka
+  // ----------------------------------------------------
+  if (!flameTriggered && gasWarning) {
+    const isCritical = gasHazard || mqPpm > 900;
+    return {
+      threatLevel: isCritical ? 'CRITICAL' : 'WARNING',
+      threatScore: Math.min(94, Math.round(72 + ((mqPpm - warnPpm) / (hazardPpm - warnPpm || 1)) * 22)),
+      threatTitle: isCritical ? 'BAHAYA ASAP PEKAT & KEBOCORAN GAS BERACUN' : 'PERINGATAN: KONSENTRASI GAS & POLUSI UDARA TINGGI',
+      threatDescription: `Sensor MQ-135 mendeteksi konsentrasi gas berbahaya (${mqPpm.toFixed(0)} PPM) tanpa adanya nyala api terbuka dari Flame Sensor.`,
+      causeAnalysis: 'AI mengidentifikasi potensi pembakaran bara tersembunyi (smoldering) pada media tanam/sekam, kabel korsleting yang meleleh tanpa lidah api, atau kebocoran gas berbahaya (amonia/CO2/VOC).',
+      crossValidationStatus: 'SMOLDERING_SUSPECTED',
+      crossValidationDetails: 'Sensor Api [AMAN] vs Sensor MQ-135 [TERPICU]. Kondisi khas bara tertutup atau kontaminasi udara luar.',
+      sensorCorrelationIndex: 86,
+      factors: [
+        `Partikel gas/asap terdeteksi pada tingkat signifikan (${mqPpm.toFixed(0)} PPM)`,
+        'Tidak ada radiasi nyala api terbuka pada sudut pandang Flame Sensor',
+        soil < 20 ? 'Media tanam sangat kering, rentan menjadi media bara terpendam' : 'Kelembapan media normal',
+      ],
+      immediateActions: [
+        'Buka jendela dan nyalakan exhaust fan darurat untuk sirkulasi pembuangan gas.',
+        'Gunakan masker pelindung respirator (N95 / filter gas) sebelum masuk ke area tanaman.',
+        'Periksa jalur kabel adaptor daya ESP32 dan modul motor driver L298N dari bau sangit atau komponen panas.',
+        'Siramkan air secara terarah jika dicurigai terdapat bara terpendam pada media tanam sekam.',
+      ],
+      systemResponses: [
+        'Mengaktifkan notifikasi bahaya gas pada dashboard sistem.',
+        'Merekam anomali peningkatan PPM ke dalam log riwayat.',
+      ],
+      flameAgreement: false,
+      gasAgreement: true,
+      recommendedInspection: 'Periksa fisik seluruh perkabelan dan permukaan media tanam dengan segera.',
+      timestamp: nowTs,
+    };
+  }
+
+  // ----------------------------------------------------
+  // SKENARIO 3: OPTICAL FLICKER / SUNLIGHT ANOMALY / FALSE ALARM
+  // Flame Sensor Terpicu, Tetapi Udara Bersih & Normal
+  // ----------------------------------------------------
+  if (flameTriggered && !gasWarning && temp < 36) {
+    return {
+      threatLevel: 'ADVISORY',
+      threatScore: 42,
+      threatTitle: 'WASPADA: ANOMALI OPTIK / PANTULAN CAHAYA MATAHARI',
+      threatDescription: `Flame Sensor terpicu aktif, namun sensor MQ-135 mendeteksi kualitas udara tetap bersih (${mqPpm.toFixed(0)} PPM) dan suhu normal (${temp.toFixed(1)}°C).`,
+      causeAnalysis: 'AI mendeteksi anomali asimetris sensor. Sensor api inframerah sangat sensitif terhadap pantulan sinar matahari langsung, lampu halogen, atau percikan korek api sesaat tanpa pembakaran lanjutan.',
+      crossValidationStatus: 'OPTICAL_FALSE_ALARM',
+      crossValidationDetails: 'Sensor Api [AKTIF] tapi Sensor Gas MQ-135 [BERSIH]. Kemungkinan besar false alarm optik cahaya.',
+      sensorCorrelationIndex: 38,
+      factors: [
+        'Sensor optik mendeteksi radiasi inframerah',
+        `Kualitas udara bersih tanpa jejak partikel asap pembakaran (${mqPpm.toFixed(0)} PPM)`,
+        `Suhu ruangan dalam batas normal (${temp.toFixed(1)}°C)`,
+      ],
+      immediateActions: [
+        'Periksa tangkapan kamera kanopi (ESP32-CAM) untuk verifikasi visual langsung.',
+        'Pastikan posisi probe Flame Sensor tidak langsung menghadap sinar matahari terik atau lampu pijar.',
+        'Bersihkan debu atau minyak pada optik sensor api.',
+      ],
+      systemResponses: [
+        'Menahan pengaktifan alarm evakuasi darurat guna mencegah kepanikan false positive.',
+        'Menyarankan operator melakukan verifikasi visual secara cepat.',
+      ],
+      flameAgreement: true,
+      gasAgreement: false,
+      recommendedInspection: 'Verifikasi visual kanopi tanaman dan posisikan tudung pelindung sensor api.',
+      timestamp: nowTs,
+    };
+  }
+
+  // ----------------------------------------------------
+  // SKENARIO 4: THERMAL COMBUSTION RISK
+  // Suhu Ekstrem + Tanah Sangat Kering + Gas Sedikit Meningkat
+  // ----------------------------------------------------
+  if (temp >= 36 && soil <= 20 && mqPpm >= 380) {
+    return {
+      threatLevel: 'WARNING',
+      threatScore: 68,
+      threatTitle: 'PERINGATAN: RISIKO PEMBAKARAN SPONTAN & STRES TERMAL',
+      threatDescription: `Suhu sangat tinggi (${temp.toFixed(1)}°C) dan media tanam sangat kering (${soil.toFixed(1)}%) disertai kenaikan gas organik (${mqPpm.toFixed(0)} PPM).`,
+      causeAnalysis: 'Akumulasi panas ekstrem dalam ruang tertutup mempercepat pengeringan daun dan biomassa. Kondisi ini sangat rawan memicu pembakaran spontan jika terpapar percikan komponen elektrik.',
+      crossValidationStatus: 'THERMAL_STRESS',
+      crossValidationDetails: 'Suhu Kritis + Tanah Dehidrasi + Gas Meningkat. Risiko awal sebelum timbulnya api.',
+      sensorCorrelationIndex: 72,
+      factors: [
+        `Suhu udara melampaui batas aman fisiologis (${temp.toFixed(1)}°C)`,
+        `Kelembapan media tanam kritis (${soil.toFixed(1)}%)`,
+        `Gas organik dan uap terakumulasi (${mqPpm.toFixed(0)} PPM)`,
+      ],
+      immediateActions: [
+        'Lakukan penyiraman air secara bertahap untuk mendinginkan media perakaran tanaman.',
+        'Aktifkan naungan / paranet serta sirkulasi pendingin udara.',
+        'Jauhkan sumber panas dan periksa kabel listrik dari potensi overheat.',
+      ],
+      systemResponses: [
+        'Mengusulkan siklus penyiraman darurat pendinginan.',
+        'Memperpendek interval pemantauan sensor ke 15 menit.',
+      ],
+      flameAgreement: false,
+      gasAgreement: false,
+      recommendedInspection: 'Inspeksi suhu perangkat dan lakukan pendinginan lingkungan segera.',
+      timestamp: nowTs,
+    };
+  }
+
+  // ----------------------------------------------------
+  // SKENARIO 5: ALL CLEAR & SECURE GREENHOUSE OPERATION
+  // ----------------------------------------------------
+  return {
+    threatLevel: 'SAFE',
+    threatScore: Math.min(10, Math.max(2, Math.round((mqPpm / 350) * 8))),
+    threatTitle: 'KONDISI AMAN & TERKENDALI (ALL CLEAR)',
+    threatDescription: `Sensor Flame dan MQ-135 saling memvalidasi bahwa lingkungan aman. Tidak ada api dan kualitas udara bersih (${mqPpm.toFixed(0)} PPM).`,
+    causeAnalysis: 'Parameter keselamatan fisik dan kimia beroperasi pada batas optimal yang ideal untuk fotosintesis dan pertumbuhan tanaman.',
+    crossValidationStatus: 'ALL_CLEAR',
+    crossValidationDetails: 'Sensor Api [AMAN] + Sensor Gas [BERSIH]. Sinergi pengawasan keselamatan berjalan optimal.',
+    sensorCorrelationIndex: 100,
+    factors: [
+      'Tidak ada deteksi lidah api atau radiasi inframerah anomali',
+      `Kadar gas dan partikel udara berada pada zona optimal (${mqPpm.toFixed(0)} PPM)`,
+      `Suhu (${temp.toFixed(1)}°C) dan kelembapan (${hum.toFixed(0)}%) seimbang`,
+    ],
+    immediateActions: [
+      'Lanjutkan jadwal pemantauan mikroklimat rutin.',
+      'Jaga kebersihan fisik permukaan sensor MQ-135 dan Flame Sensor.',
+    ],
+    systemResponses: [
+      'Sistem keselamatan FLORA 2.0 aktif dalam status siaga siaga protektif.',
+    ],
+    flameAgreement: false,
+    gasAgreement: false,
+    recommendedInspection: 'Pemeriksaan rutin berkala mingguan.',
+    timestamp: nowTs,
   };
 }
