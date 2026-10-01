@@ -64,7 +64,7 @@ export const App: React.FC = () => {
       : null;
 
   return (
-    <div className="min-h-screen bg-[#F7FAF8] text-[#1B2408] flex flex-col font-sans">
+    <div className="min-h-screen bg-flora-warm-white text-flora-text flex flex-col font-sans">
       {/* 1. Splash Screen Boot Sequence */}
       {expStage === 'boot' && (
         <SplashScreen

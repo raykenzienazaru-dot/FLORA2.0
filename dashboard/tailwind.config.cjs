@@ -8,21 +8,18 @@ module.exports = {
     extend: {
       colors: {
         flora: {
-          'deep': '#1E2805',
-          'primary-dark': '#1E2805',
-          'primary': '#597C00',
-          'secondary': '#658406',
-          'accent': '#9DB312',
-          'botanical': '#597C00',
-          'light-accent': '#C3D883',
-          'mist': '#F0F4E8',
-          'canvas': '#F7FAF8',
-          'surface': '#FFFFFF',
-          'surface-subtle': '#F4F7F2',
-          'ink': '#1B2408',
-          'muted': '#617253',
-          'line': '#E2E8DC',
-          'line-subtle': '#EEF2EA',
+          'forest': '#173D2B',
+          'deep': '#0F2F22',
+          'primary': '#2F6F45',
+          'medium': '#5F9E52',
+          'accent': '#A8D65A',
+          'warm-white': '#F7F8F4',
+          'soft-white': '#EEF3EC',
+          'card': '#FFFFFF',
+          'dark-surface': '#102019',
+          'text': '#17221B',
+          'text-secondary': '#69756C',
+          'text-muted': '#98A39B',
         },
         status: {
           healthy: {

@@ -67,54 +67,51 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-5 mb-5 border-b border-[#E4EBE0]">
-      <div className="flex items-center gap-3">
+    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 mb-6 border-b border-flora-soft-white/30">
+      <div className="flex items-center gap-3 w-full sm:w-auto">
         {onOpenMobileMenu && (
           <button
             onClick={onOpenMobileMenu}
-            className="lg:hidden p-2 rounded-xl bg-white border border-[#E4EBE0] text-[#1B2408] hover:bg-[#F4F7F2] text-lg font-bold shadow-xs cursor-pointer"
+            className="lg:hidden p-2 rounded-lg bg-flora-card border border-flora-soft-white/40 text-flora-text hover:bg-flora-soft-white text-lg font-bold cursor-pointer"
             aria-label="Open Navigation Menu"
           >
             ☰
           </button>
         )}
-        <div>
+        <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold tracking-widest text-[#597C00] uppercase flex items-center gap-1.5">
+            <span className="text-[10px] font-bold tracking-widest text-flora-primary uppercase flex items-center gap-1.5">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 0 C12 7 17 12 24 12 C17 12 12 17 12 24 C12 17 7 12 0 12 C7 12 12 7 12 0 Z" />
               </svg>
-              <span>FLORA · Botanical Intelligence</span>
+              <span>FLORA 2.0</span>
             </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#1B2408] mt-0.5 tracking-tight font-display">
-            Plant Health Console
+          <h1 className="text-xl sm:text-2xl font-bold text-flora-text mt-1 tracking-tight">
+            Environmental Status
           </h1>
-          <p className="text-xs text-[#617253] mt-0.5">
-            Realtime sensor telemetry, microclimate risk evaluation, and leaf vision classification.
-          </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5 self-end sm:self-auto flex-wrap">
-        {/* Realtime System Channel State Badge */}
+      <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+        {/* Status Badge */}
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-[#E4EBE0] text-xs shadow-xs"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-flora-card border border-flora-soft-white/40 text-xs"
           title={status.description}
         >
           <span
             className={`w-2 h-2 rounded-full shrink-0 ${status.indicatorColor}`}
           />
-          <span className="font-bold text-[#1B2408] font-display text-[11px] uppercase tracking-wider">
+          <span className="font-bold text-flora-text text-[11px] uppercase tracking-wider">
             {status.state}
           </span>
-          <span className="text-[11px] text-[#617253] font-tabular border-l border-[#E4EBE0] pl-2 hidden sm:inline-block max-w-[220px] truncate">
+          <span className="text-[11px] text-flora-text-secondary font-mono border-l border-flora-soft-white/30 pl-2 hidden sm:inline-block max-w-[200px] truncate">
             {getStatusDisplayText()}
           </span>
         </div>
 
         {/* Clock */}
-        <span className="hidden md:inline-block px-3 py-1.5 rounded-xl bg-white border border-[#E4EBE0] text-xs font-medium text-[#1B2408] font-tabular shadow-xs">
+        <span className="hidden md:inline-block px-3 py-1.5 rounded-lg bg-flora-card border border-flora-soft-white/40 text-xs font-medium text-flora-text font-mono">
           {clock}
         </span>
 
@@ -122,10 +119,10 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onRefresh}
           disabled={isRefreshing}
-          className="px-3.5 py-1.5 rounded-xl bg-[#597C00] hover:bg-[#486500] text-white text-xs font-semibold transition-all shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer active:scale-95"
+          className="px-3.5 py-1.5 rounded-lg bg-flora-primary hover:bg-flora-primary/90 text-white text-xs font-semibold transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer active:scale-95"
         >
           <span className={isRefreshing ? 'animate-spin inline-block' : ''}>↻</span>
-          <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
+          <span className="hidden sm:inline">{isRefreshing ? 'Syncing' : 'Refresh'}</span>
         </button>
       </div>
     </header>

@@ -148,62 +148,60 @@ export const SmartWateringPanel: React.FC<SmartWateringPanelProps> = ({
   const hasMoisture = moistureVal !== undefined && moistureVal !== null && !isNaN(Number(moistureVal));
 
   return (
-    <section className="flora-card p-6 flex flex-col justify-between shadow-xs h-full">
+    <section className="bg-flora-card p-6 flex flex-col justify-between border border-flora-soft-white/40 rounded-lg h-full">
       <div>
-        {/* 1. CURRENT CONDITION */}
+        {/* Header */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-bold text-[#597C00] uppercase tracking-widest block">
-              Irrigation
+            <span className="text-[10px] font-bold text-flora-primary uppercase tracking-widest block">
+              Smart Watering
             </span>
             {hasMoisture && (
-              <span className="text-[11px] font-tabular text-[#617253]">
-                Soil moisture: <strong className="text-[#1B2408]">{Number(moistureVal).toFixed(0)}%</strong>
+              <span className="text-[11px] font-mono text-flora-text-secondary">
+                Soil: <strong className="text-flora-text">{Number(moistureVal).toFixed(0)}%</strong>
               </span>
             )}
           </div>
-          <h2 className="text-lg sm:text-xl font-bold text-[#1B2408] font-display capitalize">
+          <h2 className="text-lg font-bold text-flora-text capitalize">
             {condition.title}
           </h2>
-          <p className="text-xs text-[#617253] mt-1 leading-relaxed m-0">
+          <p className="text-xs text-flora-text-secondary mt-1 leading-relaxed">
             {condition.description}
           </p>
         </div>
 
-        {/* 2. LAST MANUAL WATERING (Summary Card) */}
+        {/* Last Watering */}
         {latestEvent ? (
-          <div className="bg-[#F4F7F2] border border-[#E4EBE0] rounded-xl p-3.5 my-3.5">
+          <div className="bg-flora-soft-white/50 border border-flora-soft-white/50 rounded-lg p-3.5 my-3.5">
             <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#617253]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-flora-text-secondary">
                 Last Manual Watering
               </span>
-              <span className="text-[10px] font-semibold text-[#22531A] bg-[#EAF4E8] px-2 py-0.5 rounded-md border border-[#C4E1BF]">
+              <span className="text-[10px] font-semibold text-flora-primary bg-flora-soft-white px-2 py-0.5 rounded border border-flora-soft-white/60">
                 Recorded
               </span>
             </div>
-            <div className="text-sm font-bold font-display text-[#1B2408]">
+            <div className="text-sm font-bold text-flora-text">
               {formatEventTime(latestEvent.timestamp).full}
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-[#617253] mt-1 font-tabular">
-              <span>Method: Manual</span>
-              <span className="text-[#617253]/40">·</span>
-              <span>Duration: Manual log</span>
+            <div className="flex items-center gap-2 text-[11px] text-flora-text-secondary mt-1 font-mono">
+              <span>Manual Log</span>
             </div>
           </div>
         ) : (
-          <div className="bg-[#F4F7F2] border border-[#E4EBE0] rounded-xl p-3.5 my-3.5 text-xs text-[#617253]">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#617253] block mb-0.5">
+          <div className="bg-flora-soft-white/30 border border-flora-soft-white/40 rounded-lg p-3.5 my-3.5 text-xs text-flora-text-secondary">
+            <span className="text-[10px] font-bold uppercase tracking-wider block mb-0.5">
               Last Manual Watering
             </span>
-            <span className="text-[11px] text-[#617253]/80 italic">
-              No manual irrigation recorded yet.
+            <span className="text-[11px] italic">
+              No irrigation recorded yet.
             </span>
           </div>
         )}
 
-        {/* 3. PRIMARY ACTION & CONCISE NOTIFICATION */}
+        {/* Notification */}
         {notification && (
-          <div className="bg-[#EAF4E8] border border-[#C4E1BF] text-[#22531A] p-3 rounded-xl mb-3 flex items-start justify-between gap-2 animate-in fade-in duration-200">
+          <div className="bg-green-50 border border-green-200 text-green-900 p-3 rounded-lg mb-3 flex items-start justify-between gap-2 animate-in fade-in duration-200">
             <div className="flex items-start gap-2">
               <span className="font-bold text-sm leading-none mt-0.5">✓</span>
               <div>
@@ -215,72 +213,63 @@ export const SmartWateringPanel: React.FC<SmartWateringPanelProps> = ({
             </div>
             <button
               onClick={() => setNotification(null)}
-              className="text-xs text-[#22531A]/60 hover:text-[#22531A] px-1 font-bold cursor-pointer"
-              aria-label="Dismiss notification"
+              className="text-xs text-green-900/60 hover:text-green-900 px-1 font-bold cursor-pointer"
+              aria-label="Dismiss"
             >
               ✕
             </button>
           </div>
         )}
 
+        {/* Water Button */}
         <button
           onClick={handleWaterClick}
           disabled={isSubmitting}
-          className="w-full py-2.5 px-4 rounded-xl bg-[#597C00] hover:bg-[#486500] text-white font-semibold text-xs transition-all shadow-xs disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+          className="w-full py-2.5 px-4 rounded-lg bg-flora-primary hover:bg-flora-primary/90 text-white font-semibold text-xs transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
         >
           <span>💧</span>
-          <span>{isSubmitting ? 'Recording...' : 'Record Manual Irrigation'}</span>
+          <span>{isSubmitting ? 'Recording...' : 'Record Manual Watering'}</span>
         </button>
 
-        {/* 4. RECENT ACTIVITY (Real Events Only) */}
+        {/* Recent Activity */}
         {recentHistory.length > 0 ? (
-          <div className="mt-4 pt-3 border-t border-[#E4EBE0]">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#617253] block mb-2">
+          <div className="mt-4 pt-3 border-t border-flora-soft-white/30">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-flora-text-secondary block mb-2">
               Recent Activity
             </span>
-            <div className="space-y-1.5 font-tabular">
+            <div className="space-y-1.5 font-mono text-xs">
               {recentHistory.map((ev) => (
                 <div
                   key={ev.id}
-                  className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[#F4F7F2]/60 hover:bg-[#F4F7F2] transition-colors"
+                  className="flex items-center justify-between py-1.5 px-2 rounded bg-flora-soft-white/30 hover:bg-flora-soft-white/50 transition-colors"
                 >
-                  <span className="font-medium text-[#1B2408]">
+                  <span className="font-medium text-flora-text">
                     {formatEventTime(ev.timestamp).timeOnly}
                   </span>
-                  <span className="text-[11px] text-[#617253]">
-                    Manual watering
-                  </span>
-                  <span className="text-[10px] font-medium text-[#22531A] bg-[#EAF4E8] px-1.5 py-0.5 rounded border border-[#C4E1BF]/60">
-                    Recorded
-                  </span>
+                  <span className="text-flora-text-secondary">Manual log</span>
                 </div>
               ))}
             </div>
           </div>
         ) : (
-          <div className="mt-4 pt-3 border-t border-[#E4EBE0]">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#617253] block mb-1">
+          <div className="mt-4 pt-3 border-t border-flora-soft-white/30">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-flora-text-secondary block mb-1">
               Recent Activity
             </span>
-            <p className="text-[11px] text-[#617253]/80 italic m-0">
-              No manual irrigation recorded yet.
+            <p className="text-[11px] text-flora-text-secondary italic m-0">
+              No history yet.
             </p>
           </div>
         )}
       </div>
 
-      {/* 5. AUTOMATIC WATERING (Quiet Secondary Note) */}
-      <div className="mt-4 pt-3 border-t border-[#E4EBE0]">
-        <div className="flex items-center justify-between text-xs text-[#617253] mb-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#617253]">
-            Automatic Watering
-          </span>
-          <span className="text-[11px] font-medium text-[#617253]/80">
-            Not connected
-          </span>
-        </div>
-        <p className="text-[11px] text-[#617253]/80 m-0 leading-relaxed">
-          Automatic watering will be available when an irrigation actuator is connected.
+      {/* Auto Watering Note */}
+      <div className="mt-4 pt-3 border-t border-flora-soft-white/30">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-flora-text-secondary block mb-1">
+          Automatic Control
+        </span>
+        <p className="text-[11px] text-flora-text-secondary m-0">
+          Connect pump to enable automatic irrigation scheduling.
         </p>
       </div>
     </section>

@@ -121,28 +121,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
     : systemState.toLowerCase().includes('active') || systemState.toLowerCase().includes('live');
 
   const navContent = (
-    <div className="flex flex-col h-full p-4 lg:p-5 text-[#F0F4E8]">
-      {/* Brand Header with Signature Botanical Star */}
-      <div className="flex items-center gap-3 pb-5 border-b border-[#2C3B0E]">
-        <div className="w-9 h-9 rounded-xl bg-[#597C00] text-white flex items-center justify-center border border-[#9DB312]/40 shadow-sm shrink-0">
+    <div className="flex flex-col h-full p-4 lg:p-6 text-flora-soft-white">
+      {/* Brand Header */}
+      <div className="flex items-center gap-3 pb-6 border-b border-flora-forest/20">
+        <div className="w-9 h-9 rounded-lg bg-flora-primary text-white flex items-center justify-center border border-flora-accent/30 shrink-0">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 0 C12 7 17 12 24 12 C17 12 12 17 12 24 C12 17 7 12 0 12 C7 12 12 7 12 0 Z" />
           </svg>
         </div>
         <div className="min-w-0">
-          <span className="block text-xs font-bold tracking-widest text-[#9DB312] uppercase font-display">
-            FLORA
+          <span className="block text-xs font-bold tracking-widest text-flora-accent uppercase">
+            FLORA 2.0
           </span>
-          <span className="block text-xs font-semibold text-[#F0F4E8]/90 truncate">
-            Intelligent Plant Console
+          <span className="block text-xs font-medium text-flora-soft-white/90 truncate">
+            Plant Monitoring System
           </span>
         </div>
       </div>
 
       {/* Navigation Links */}
-      <div className="flex-1 py-4 overflow-y-auto">
-        <span className="text-[10px] font-bold text-[#C3D883] uppercase tracking-wider px-3 mb-2 block">
-          Telemetry &amp; Controls
+      <div className="flex-1 py-6 overflow-y-auto">
+        <span className="text-[10px] font-bold text-flora-accent/80 uppercase tracking-wider px-3 mb-3 block">
+          Navigation
         </span>
         <nav className="space-y-1">
           {navItems.map((item) => {
@@ -154,13 +154,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onNavigate(item.id);
                   onCloseMobile();
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-[#597C00] text-white shadow-xs font-bold'
-                    : 'text-[#C3D883] hover:text-white hover:bg-[#2C3B0E]/60'
+                    ? 'bg-flora-primary text-white shadow-sm'
+                    : 'text-flora-soft-white/80 hover:text-white hover:bg-flora-forest/20'
                 }`}
               >
-                <span className={isActive ? 'text-white' : 'text-[#9DB312]'}>{item.icon}</span>
+                <span className={isActive ? 'text-white' : 'text-flora-accent/70'}>{item.icon}</span>
                 <span>{item.label}</span>
               </button>
             );
@@ -168,38 +168,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* System Health Summary at Bottom */}
-      <div className="pt-4 border-t border-[#2C3B0E] shrink-0">
-        <div className="bg-[#141D04] p-3 rounded-xl border border-[#2C3B0E] flex items-center gap-2.5">
+      {/* System Status at Bottom */}
+      <div className="pt-6 border-t border-flora-forest/20 shrink-0">
+        <div className="bg-flora-dark-surface p-4 rounded-lg border border-flora-forest/40 flex items-center gap-3">
           <span
             className={`w-2 h-2 rounded-full shrink-0 ${
               systemStatus
                 ? systemStatus.indicatorColor
                 : isOnline
-                ? 'bg-[#9DB312] shadow-[0_0_6px_rgba(157,179,18,0.7)]'
-                : 'bg-[#D97706]'
+                ? 'bg-flora-primary shadow-sm'
+                : 'bg-orange-500'
             }`}
           />
           <div className="min-w-0 flex-1">
-            <span className="block text-[9px] text-[#C3D883] font-semibold uppercase tracking-wider">
-              System Channel
+            <span className="block text-[10px] text-flora-accent/80 font-semibold uppercase tracking-wider">
+              System Status
             </span>
-            <div className="flex items-center justify-between gap-1 mt-0.5">
-              <span className="block text-xs font-bold text-white uppercase tracking-wider truncate">
-                {systemStatus ? systemStatus.state : systemState}
-              </span>
-              {systemStatus?.secondsAgo !== null && systemStatus?.secondsAgo !== undefined && (
-                <span className="text-[10px] text-[#C3D883]/80 font-tabular shrink-0">
-                  {systemStatus.secondsAgo <= 15 ? `${systemStatus.secondsAgo}s ago` : `${systemStatus.secondsAgo}s`}
-                </span>
-              )}
-            </div>
-            <span className="block text-[10px] text-[#C3D883]/70 truncate mt-0.5">
-              {systemStatus
-                ? systemStatus.state === 'LIVE'
-                  ? 'Live telemetry stream'
-                  : systemStatus.description
-                : ''}
+            <span className="block text-xs font-bold text-white uppercase tracking-tight mt-0.5 truncate">
+              {systemStatus ? systemStatus.state : systemState}
             </span>
           </div>
         </div>
@@ -209,29 +195,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Sidebar (Sticky, stays with page as content scrolls) */}
-      <aside className="hidden lg:flex w-[240px] h-screen sticky top-0 shrink-0 bg-[#1E2805] flex-col border-r border-[#2C3B0E] z-30 shadow-md">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex w-[260px] h-screen sticky top-0 shrink-0 bg-flora-dark-surface flex-col border-r border-flora-forest/20 z-30">
         {navContent}
       </aside>
 
-      {/* Mobile Drawer Backdrop & Menu */}
+      {/* Mobile Drawer */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 lg:hidden flex"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 lg:hidden flex"
           onClick={onCloseMobile}
         >
           <div
-            className="w-[260px] h-full bg-[#1E2805] shadow-2xl flex flex-col z-50 animate-in slide-in-from-left duration-200"
+            className="w-[260px] h-full bg-flora-dark-surface flex flex-col z-50 animate-in slide-in-from-left duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center p-4 border-b border-[#2C3B0E]">
-              <span className="text-xs font-bold text-white uppercase tracking-wider font-display flex items-center gap-1.5">
-                <span className="text-[#9DB312]">✦</span>
-                <span>FLORA Menu</span>
+            <div className="flex justify-between items-center p-4 border-b border-flora-forest/20">
+              <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-flora-accent">✦</span>
+                <span>Menu</span>
               </span>
               <button
                 onClick={onCloseMobile}
-                className="text-[#C3D883] hover:text-white p-1 rounded-md text-sm"
+                className="text-flora-soft-white/70 hover:text-white p-1 rounded-md text-sm"
                 aria-label="Close navigation"
               >
                 ✕
